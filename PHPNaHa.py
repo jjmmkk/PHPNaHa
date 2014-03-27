@@ -345,7 +345,7 @@ class PrivateInsertUseStatement(sublime_plugin.TextCommand):
         insert_loctions = [
             (
                 r'^use ',
-                '{1}{0}',
+                '{0}{1}',
             ),
             (
                 r'^namespace ',
