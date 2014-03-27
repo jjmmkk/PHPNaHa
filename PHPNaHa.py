@@ -70,10 +70,12 @@ class NamespaceIndexerThread(threading.Thread):
         threading.Thread.__init__(self)
 
     def run(self):
+        sublime.status_message('PHPNaHa: Beginning indexing')
         for folder in self.root_folders:
             files = self.get_php_files(folder)
             for file_name in files:
                 self.store_namespace(file_name)
+        sublime.status_message('PHPNaHa: Finished indexing')
 
     def stop(self):
         if self.isAlive():
