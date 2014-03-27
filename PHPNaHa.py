@@ -58,7 +58,7 @@ class NamespaceContainer(object):
     def name(self):
         return self._name
 
-    def filename(self):
+    def path(self):
         return self._filename
 
 
@@ -101,7 +101,7 @@ class NamespaceIndexerThread(threading.Thread):
                 if namespace_match and class_name_match:
                     self._index.addNamespace(
                         namespace_match.group(1) + '\\' + class_name_match.group(1),
-                        os.path.basename(file_name)
+                        os.path.abspath(file_name)
                     )
                     break
         except:
@@ -155,23 +155,35 @@ class PhpnahaCopyNamespaceAndClass(sublime_plugin.TextCommand):
 
 class PhpnahaOpenClassFile(sublime_plugin.TextCommand):
 
+    _index = None
+    _current_view = None
+
     def run(self, edit):
-        index = NamespaceIndex.Instance().getIndex()
-        quick_panel_options = [container.name() for container in index]
+        self._index = NamespaceIndex.Instance().getIndex()
+        # Store current view, so that it can be re-focused after previews
+        self._current_view = self.view
+        quick_panel_options = [container.name() for container in self._index]
         self.view.window().show_quick_panel(
             items = quick_panel_options,
             on_select = self.select_file,
-            on_highlight = self.preview_file
+            on_highlight = self.preview_file,
+            flags = sublime.MONOSPACE_FONT
         )
 
-    def select_file(self, index):
-        if index == -1:
-            return
-        else:
-            print('index selected: ' + index)
+    def select_file(self, option_index):
+        # Re-focus the view
+        self.view.window().focus_view(self._current_view)
+        # Insert if quick panel was not cancelled
+        if option_index != -1:
+            print('insert for index ' + str(option_index))
 
-    def preview_file(self, index):
-        print('preview index: ' + index)
+    def preview_file(self, option_index):
+        namespace = self._index[option_index]
+        self.view.window().open_file(
+            namespace.path(),
+            sublime.ENCODED_POSITION | sublime.TRANSIENT
+        )
+
 
 
 class PhpnahaFindClassAndInsertUseStatement(sublime_plugin.TextCommand):
