@@ -46,6 +46,16 @@ class NamespaceIndex:
     def getIndex(self):
         return self._namespace_index
 
+    def getIndexByName(self, name):
+        namespaces = []
+        for namespace in self._namespace_index:
+            if name == namespace.name():
+                namespaces = [namespace]
+                break
+            if name in namespace.name():
+                namespaces.append(namespace)
+        return namespaces
+
 
 class NamespaceContainer(object):
     _name = ''
@@ -168,16 +178,42 @@ class PhpnahaOpenClassFile(sublime_plugin.TextCommand, FilePreviewer):
     _current_view = None
 
     def run(self, edit):
-        self._index = NamespaceIndex.Instance().getIndex()
         # Store current view, so that it can be re-focused after previews
         self._current_view = self.view
-        quick_panel_options = [container.name() for container in self._index]
-        self.view.window().show_quick_panel(
-            items = quick_panel_options,
-            on_select = self.select_file,
-            on_highlight = self.preview_file,
-            flags = sublime.MONOSPACE_FONT
-        )
+
+        self._index = NamespaceIndex.Instance().getIndex()
+
+        selections = self.view.sel()
+        if selections:
+            region = selections[0]
+            line_region = self.view.expand_by_class(region, sublime.CLASS_LINE_START | sublime.CLASS_LINE_END)
+            line = self.view.substr(line_region).strip()
+            if (re.match(r'^use', line)):
+                namespace = re.search( r'^use ([^ ;]+)', line).group(1)
+                self._index = NamespaceIndex.Instance().getIndexByName(namespace)
+            else:
+                word_region = self.view.expand_by_class(region, sublime.CLASS_WORD_START | sublime.CLASS_WORD_END | sublime.CLASS_LINE_START | sublime.CLASS_LINE_END)
+                word = self.view.substr(word_region).strip()
+                if word:
+                    use_regions = self.view.find_all(r'^use ([^;]+)')
+                    for use_region in use_regions:
+                        use_line = self.view.substr(use_region)
+                        if word in use_line:
+                            namespace = re.search(r'^use ([^ ;]+)', self.view.substr(use_region)).group(1)
+                            self._index = NamespaceIndex.Instance().getIndexByName(namespace)
+
+        # Open directly if only one file was found
+        if len(self._index) == 1:
+            self.select_file(0)
+        # Else open quick panel
+        else:
+            quick_panel_options = [container.name() for container in self._index]
+            self.view.window().show_quick_panel(
+                items = quick_panel_options,
+                on_select = self.select_file,
+                on_highlight = self.preview_file,
+                flags = sublime.MONOSPACE_FONT
+            )
 
     def select_file(self, option_index):
         # Open file if quick panel was not cancelled
@@ -190,5 +226,59 @@ class PhpnahaOpenClassFile(sublime_plugin.TextCommand, FilePreviewer):
 
 class PhpnahaFindClassAndInsertUseStatement(sublime_plugin.TextCommand, FilePreviewer):
 
+    _index = None
+    _current_view = None
+
     def run(self, edit):
-        pass
+        self._index = NamespaceIndex.Instance().getIndex()
+        # Store current view, so that it can be re-focused if needed
+        self._current_view = self.view
+        quick_panel_options = [container.name() for container in self._index]
+        self.view.window().show_quick_panel(
+            items = quick_panel_options,
+            on_select = self.select_file,
+            on_highlight = self.preview_file,
+            flags = sublime.MONOSPACE_FONT
+        )
+
+    def select_file(self, option_index):
+        # Open file if quick panel was not cancelled
+        if option_index != -1:
+            self._current_view.run_command('private_insert_use_statement', { 'namespace': self._index[option_index].name() })
+        # Else re-focus the current view
+        self.view.window().focus_view(self._current_view)
+
+
+class PrivateInsertUseStatement(sublime_plugin.TextCommand):
+
+    def run(self, edit, namespace):
+        use_statement = 'use ' + namespace + ';\n'
+
+        insert_loctions = [
+            (
+                r'^use ',
+                '{1}{0}',
+            ),
+            (
+                r'^namespace ',
+                '{0}\n{1}',
+            ),
+            (
+                r'^class ',
+                '{1}\n{0}',
+            ),
+            (
+                r'^<\?php',
+                '{0}\n{1}',
+            ),
+        ]
+        view = self.view
+        for attempt_location in insert_loctions:
+            regex, format = attempt_location
+            region_match = view.find(regex, 0)
+            if region_match:
+                line_match = view.full_line(region_match.begin())
+                line_text = view.substr(line_match)
+                insertion_text = format.format(line_text, use_statement)
+                view.replace(edit, line_match, insertion_text)
+                break
