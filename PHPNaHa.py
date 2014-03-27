@@ -107,7 +107,7 @@ class NamespaceIndexerThread(threading.Thread):
                 if line.startswith('namespace'):
                     namespace_match = re.search(r'^namespace ([^;]*)', line)
                 if re.match(r'^(abstract|class|interface)', line):
-                    class_name_match = re.search( r'^(?:abstract )?(?:(?:class)|(?:interface)) ([^ ]+)', line)
+                    class_name_match = re.search( r'^(?:abstract )?(?:(?:class)|(?:interface)) ([^\s]+)', line)
                 if namespace_match and class_name_match:
                     self._index.addNamespace(
                         namespace_match.group(1) + '\\' + class_name_match.group(1),
