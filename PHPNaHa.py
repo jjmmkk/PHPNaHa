@@ -195,7 +195,6 @@ class PhpnahaOpenClassFile(sublime_plugin.TextCommand, FilePreviewer):
         self._current_view = self.view
 
         self._index = NamespaceIndex.Instance().getIndex()
-
         selections = self.view.sel()
         if selections:
             region = selections[0]
@@ -208,11 +207,23 @@ class PhpnahaOpenClassFile(sublime_plugin.TextCommand, FilePreviewer):
                 word_region = self.view.expand_by_class(region, sublime.CLASS_WORD_START | sublime.CLASS_WORD_END | sublime.CLASS_LINE_START | sublime.CLASS_LINE_END)
                 word = self.view.substr(word_region).strip()
                 if word:
+                    # Check if word is
+                    # 1. imported with use
+                    # 2. in current namespace
+                    namespace = False
                     use_regions = self.view.find_all(r'^use ([^;]+)')
                     for use_region in use_regions:
                         use_line = self.view.substr(use_region)
                         if word in use_line:
                             namespace = re.search(r'^use ([^ ;]+)', self.view.substr(use_region)).group(1)
+                            self._index = NamespaceIndex.Instance().getIndexByName(namespace)
+                            break
+                    if not namespace:
+                        namespace_region = self.view.find(r'namespace ([^ ;]+)', 0)
+                        if namespace_region:
+                            namespace_match = self.view.substr(namespace_region)
+                            namespace = re.search(r'namespace ([^ ;]+)', namespace_match).group(1)
+                            namespace += '\\' + word
                             self._index = NamespaceIndex.Instance().getIndexByName(namespace)
 
         # Open directly if only one file was found
