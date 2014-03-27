@@ -314,8 +314,7 @@ class PhpnahaFindClassAndInsertUseStatement(sublime_plugin.TextCommand, FilePrev
         line_region = self._current_view.expand_by_class(region, sublime.CLASS_LINE_START | sublime.CLASS_LINE_END)
         line = self._current_view.substr(line_region).strip()
         if (re.match(r'^use', line)):
-            namespace = re.search( r'^use ([^ ;]+)', line).group(1)
-            self._index = NamespaceIndex.Instance().getIndexByName(namespace)
+            self._index = NamespaceIndex.Instance().getIndex()
         else:
             word_region = self._current_view.expand_by_class(region, sublime.CLASS_WORD_START | sublime.CLASS_WORD_END | sublime.CLASS_LINE_START | sublime.CLASS_LINE_END)
             word = self._current_view.substr(word_region).strip().strip('\\')
