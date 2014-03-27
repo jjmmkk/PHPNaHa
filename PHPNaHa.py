@@ -142,13 +142,6 @@ class NamespaceIndexerThread(threading.Thread):
         return fileList
 
 
-class PhpnahaDebug(sublime_plugin.TextCommand):
-
-    def run(self, edit):
-        print(len(NamespaceIndex.Instance().getIndex()))
-        pass
-
-
 class PhpnahaIndexProjectNamespaces(sublime_plugin.TextCommand):
 
     _indexer_thread = None
