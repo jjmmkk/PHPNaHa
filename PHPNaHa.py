@@ -56,6 +56,14 @@ class NamespaceIndex:
                 namespaces.append(namespace)
         return namespaces
 
+    def getIndexByClassName(self, class_name):
+        class_name = '\\' + class_name.strip('\\')
+        namespaces = []
+        for namespace in self._namespace_index:
+            if namespace.name().endswith(class_name):
+                namespaces.append(namespace)
+        return namespaces
+
 
 class NamespaceContainer(object):
     _name = ''
@@ -111,6 +119,12 @@ class NamespaceIndexerThread(threading.Thread):
                 if namespace_match and class_name_match:
                     self._index.addNamespace(
                         namespace_match.group(1) + '\\' + class_name_match.group(1),
+                        os.path.abspath(file_name)
+                    )
+                    break
+                elif class_name_match:
+                    self._index.addNamespace(
+                        '\\' + class_name_match.group(1),
                         os.path.abspath(file_name)
                     )
                     break
@@ -207,6 +221,7 @@ class PhpnahaCopyNamespaceAndClass(sublime_plugin.TextCommand, NamespacePathHand
 
 
 class FilePreviewer(object):
+
     def preview_file(self, option_index):
         namespace = self._index[option_index]
         self.view.window().open_file(
@@ -214,17 +229,9 @@ class FilePreviewer(object):
             sublime.ENCODED_POSITION | sublime.TRANSIENT
         )
 
-
-class PhpnahaOpenClassFile(sublime_plugin.TextCommand, FilePreviewer):
-
-    _index = None
-    _current_view = None
-
-    def run(self, edit):
-        # Store current view, so that it can be re-focused after previews
-        self._current_view = self.view
-
+    def quick_panel(self):
         self._index = NamespaceIndex.Instance().getIndex()
+
         selections = self.view.sel()
         if selections:
             region = selections[0]
@@ -235,7 +242,7 @@ class PhpnahaOpenClassFile(sublime_plugin.TextCommand, FilePreviewer):
                 self._index = NamespaceIndex.Instance().getIndexByName(namespace)
             else:
                 word_region = self.view.expand_by_class(region, sublime.CLASS_WORD_START | sublime.CLASS_WORD_END | sublime.CLASS_LINE_START | sublime.CLASS_LINE_END)
-                word = self.view.substr(word_region).strip()
+                word = self.view.substr(word_region).strip().strip('\\')
                 if word:
                     # Check if word is
                     # 1. imported with use
@@ -255,6 +262,13 @@ class PhpnahaOpenClassFile(sublime_plugin.TextCommand, FilePreviewer):
                             namespace = re.search(r'namespace ([^ ;]+)', namespace_match).group(1)
                             namespace += '\\' + word
                             self._index = NamespaceIndex.Instance().getIndexByName(namespace)
+                            if len(self._index) == 0:
+                                self._index = NamespaceIndex.Instance().getIndexByClassName(word)
+                        else:
+                            self._index = NamespaceIndex.Instance().getIndexByName(word)
+
+        if len(self._index) == 0:
+            self._index = NamespaceIndex.Instance().getIndex()
 
         # Open directly if only one file was found
         if len(self._index) == 1:
@@ -268,6 +282,17 @@ class PhpnahaOpenClassFile(sublime_plugin.TextCommand, FilePreviewer):
                 on_highlight = self.preview_file,
                 flags = sublime.MONOSPACE_FONT
             )
+
+
+class PhpnahaOpenClassFile(sublime_plugin.TextCommand, FilePreviewer):
+
+    _index = None
+    _current_view = None
+
+    def run(self, edit):
+        # Store current view, so that it can be re-focused after previews
+        self._current_view = self.view
+        self.quick_panel()
 
     def select_file(self, option_index):
         # Open file if quick panel was not cancelled
@@ -284,16 +309,9 @@ class PhpnahaFindClassAndInsertUseStatement(sublime_plugin.TextCommand, FilePrev
     _current_view = None
 
     def run(self, edit):
-        self._index = NamespaceIndex.Instance().getIndex()
         # Store current view, so that it can be re-focused if needed
         self._current_view = self.view
-        quick_panel_options = [container.name() for container in self._index]
-        self.view.window().show_quick_panel(
-            items = quick_panel_options,
-            on_select = self.select_file,
-            on_highlight = self.preview_file,
-            flags = sublime.MONOSPACE_FONT
-        )
+        self.quick_panel()
 
     def select_file(self, option_index):
         # Open file if quick panel was not cancelled
