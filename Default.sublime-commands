@@ -1,0 +1,16 @@
+[{
+    "caption": "PHPNaHa: Index project",
+    "command": "phpnaha_index_project_namespaces"
+},{
+    "caption": "PHPNaHa: Insert namespace statement",
+    "command": "phpnaha_insert_namespace_statement"
+},{
+    "caption": "PHPNaHa: Copy namespace and class",
+    "command": "phpnaha_copy_namespace_and_class"
+},{
+    "caption": "PHPNaHa: Open class file",
+    "command": "phpnaha_open_class_file"
+},{
+    "caption": "PHPNaHa: Find class and insert use statement",
+    "command": "phpnaha_find_class_and_insert_use_statement"
+}]
