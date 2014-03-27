@@ -153,7 +153,16 @@ class PhpnahaCopyNamespaceAndClass(sublime_plugin.TextCommand):
         pass
 
 
-class PhpnahaOpenClassFile(sublime_plugin.TextCommand):
+class FilePreviewer(object):
+    def preview_file(self, option_index):
+        namespace = self._index[option_index]
+        self.view.window().open_file(
+            namespace.path(),
+            sublime.ENCODED_POSITION | sublime.TRANSIENT
+        )
+
+
+class PhpnahaOpenClassFile(sublime_plugin.TextCommand, FilePreviewer):
 
     _index = None
     _current_view = None
@@ -171,22 +180,15 @@ class PhpnahaOpenClassFile(sublime_plugin.TextCommand):
         )
 
     def select_file(self, option_index):
-        # Re-focus the view
-        self.view.window().focus_view(self._current_view)
-        # Insert if quick panel was not cancelled
+        # Open file if quick panel was not cancelled
         if option_index != -1:
-            print('insert for index ' + str(option_index))
-
-    def preview_file(self, option_index):
-        namespace = self._index[option_index]
-        self.view.window().open_file(
-            namespace.path(),
-            sublime.ENCODED_POSITION | sublime.TRANSIENT
-        )
+            self.view.window().open_file(self._index[option_index].path())
+        # Else re-focus the current view
+        else:
+            self.view.window().focus_view(self._current_view)
 
 
-
-class PhpnahaFindClassAndInsertUseStatement(sublime_plugin.TextCommand):
+class PhpnahaFindClassAndInsertUseStatement(sublime_plugin.TextCommand, FilePreviewer):
 
     def run(self, edit):
         pass
