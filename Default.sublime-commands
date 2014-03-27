@@ -13,4 +13,7 @@
 },{
     "caption": "PHPNaHa: Find class and insert use statement",
     "command": "phpnaha_find_class_and_insert_use_statement"
+},{
+    "caption": "PHPNaHa: __",
+    "command": "phpnaha_debug"
 }]
