@@ -21,7 +21,7 @@ None by default. Can be bound with the following:
 ```json
 [
     { "keys": ["KEY(S)"], "command": "phpnaha_index_project_namespaces" }
-	]
+]
 ```
 
 ### Insert namespace statement
