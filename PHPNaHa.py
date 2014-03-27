@@ -154,7 +154,20 @@ class PhpnahaIndexProjectNamespaces(sublime_plugin.TextCommand):
 class PhpnahaInsertNamespaceStatement(sublime_plugin.TextCommand):
 
     def run(self, edit):
-        pass
+        file_name = self.view.file_name()
+        file_path = os.path.abspath(file_name)
+        path_list = list(filter(None, file_path.split(os.path.sep)))
+        path_list.reverse()
+        namespace_list = []
+        for item in path_list:
+            if not item.endswith('.php'):
+                if item[0].isupper() or item == 'eZ':
+                    namespace_list.append(item)
+                else:
+                    break
+        if namespace_list:
+            namespace = '\\'.join(namespace_list)
+            self.view.run_command('private_insert_namespace_statement', { 'namespace': namespace })
 
 
 class PhpnahaCopyNamespaceAndClass(sublime_plugin.TextCommand):
@@ -280,5 +293,36 @@ class PrivateInsertUseStatement(sublime_plugin.TextCommand):
                 line_match = view.full_line(region_match.begin())
                 line_text = view.substr(line_match)
                 insertion_text = format.format(line_text, use_statement)
+                view.replace(edit, line_match, insertion_text)
+                break
+
+
+class PrivateInsertNamespaceStatement(sublime_plugin.TextCommand):
+
+    def run(self, edit, namespace):
+        namespace_statement = 'namespace ' + namespace + ';\n'
+
+        insert_loctions = [
+            (
+                r'^use ',
+                '{1}\n{0}',
+            ),
+            (
+                r'^class ',
+                '{1}\n{0}',
+            ),
+            (
+                r'^<\?php',
+                '{0}\n{1}\n',
+            ),
+        ]
+        view = self.view
+        for attempt_location in insert_loctions:
+            regex, format = attempt_location
+            region_match = view.find(regex, 0)
+            if region_match:
+                line_match = view.full_line(region_match.begin())
+                line_text = view.substr(line_match)
+                insertion_text = format.format(line_text, namespace_statement)
                 view.replace(edit, line_match, insertion_text)
                 break
