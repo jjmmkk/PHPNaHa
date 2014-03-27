@@ -92,6 +92,8 @@ class NamespaceIndexerThread(threading.Thread):
             namespace_match = False
             class_name_match = False
             for line in file_lines:
+                if line.startswith('<?php') and 'namespace' in line:
+                    namespace_match = re.search(r'namespace ([^;]*)', line)
                 if line.startswith('namespace'):
                     namespace_match = re.search(r'^namespace ([^;]*)', line)
                 if re.match(r'^(abstract|class|interface)', line):
