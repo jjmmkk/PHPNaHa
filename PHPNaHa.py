@@ -264,8 +264,8 @@ class PhpnahaOpenClassFile(sublime_plugin.TextCommand, FilePreviewer):
         else:
             word_region = self._current_view.expand_by_class(region, sublime.CLASS_WORD_START | sublime.CLASS_WORD_END | sublime.CLASS_LINE_START | sublime.CLASS_LINE_END)
             word = self._current_view.substr(word_region).strip().strip('\\')
+            word = re.sub(r'^[^\w]+|[^\w]+$', '', str(word))
             if word:
-                word = re.sub(r'^[^\w]+|[^\w]+$', '', word)
                 # Check if word is
                 # 1. imported with use
                 # 2. in current namespace
@@ -316,8 +316,8 @@ class PhpnahaFindClassAndInsertUseStatement(sublime_plugin.TextCommand, FilePrev
         else:
             word_region = self._current_view.expand_by_class(region, sublime.CLASS_WORD_START | sublime.CLASS_WORD_END | sublime.CLASS_LINE_START | sublime.CLASS_LINE_END)
             word = self._current_view.substr(word_region).strip().strip('\\')
+            word = re.sub(r'^[^\w]+|[^\w]+$', '', str(word))
             if word:
-                word = re.sub(r'^[^\w]+|[^\w]+$', '', word)
                 namespace_region = self._current_view.find(r'namespace ([^ ;]+)', 0)
                 if namespace_region:
                     namespace_match = self._current_view.substr(namespace_region)
