@@ -225,40 +225,9 @@ class FilePreviewer(object):
     def quick_panel(self):
         self._index = NamespaceIndex.Instance().getIndex()
 
-        selections = self.view.sel()
+        selections = self._current_view.sel()
         if selections:
-            region = selections[0]
-            line_region = self.view.expand_by_class(region, sublime.CLASS_LINE_START | sublime.CLASS_LINE_END)
-            line = self.view.substr(line_region).strip()
-            if (re.match(r'^use', line)):
-                namespace = re.search( r'^use ([^ ;]+)', line).group(1)
-                self._index = NamespaceIndex.Instance().getIndexByName(namespace)
-            else:
-                word_region = self.view.expand_by_class(region, sublime.CLASS_WORD_START | sublime.CLASS_WORD_END | sublime.CLASS_LINE_START | sublime.CLASS_LINE_END)
-                word = self.view.substr(word_region).strip().strip('\\')
-                if word:
-                    # Check if word is
-                    # 1. imported with use
-                    # 2. in current namespace
-                    namespace = False
-                    use_regions = self.view.find_all(r'^use ([^;]+)')
-                    for use_region in use_regions:
-                        use_line = self.view.substr(use_region)
-                        if word in use_line:
-                            namespace = re.search(r'^use ([^ ;]+)', self.view.substr(use_region)).group(1)
-                            self._index = NamespaceIndex.Instance().getIndexByName(namespace)
-                            break
-                    if not namespace:
-                        namespace_region = self.view.find(r'namespace ([^ ;]+)', 0)
-                        if namespace_region:
-                            namespace_match = self.view.substr(namespace_region)
-                            namespace = re.search(r'namespace ([^ ;]+)', namespace_match).group(1)
-                            namespace += '\\' + word
-                            self._index = NamespaceIndex.Instance().getIndexByName(namespace)
-                            if len(self._index) == 0:
-                                self._index = NamespaceIndex.Instance().getIndexByClassName(word)
-                        else:
-                            self._index = NamespaceIndex.Instance().getIndexByName(word)
+            self.set_index_by_selected_region(selections[0])
 
         if len(self._index) == 0:
             self._index = NamespaceIndex.Instance().getIndex()
@@ -283,9 +252,41 @@ class PhpnahaOpenClassFile(sublime_plugin.TextCommand, FilePreviewer):
     _current_view = None
 
     def run(self, edit):
-        # Store current view, so that it can be re-focused after previews
         self._current_view = self.view
         self.quick_panel()
+
+    def set_index_by_selected_region(self, region):
+        line_region = self._current_view.expand_by_class(region, sublime.CLASS_LINE_START | sublime.CLASS_LINE_END)
+        line = self._current_view.substr(line_region).strip()
+        if (re.match(r'^use', line)):
+            namespace = re.search( r'^use ([^ ;]+)', line).group(1)
+            self._index = NamespaceIndex.Instance().getIndexByName(namespace)
+        else:
+            word_region = self._current_view.expand_by_class(region, sublime.CLASS_WORD_START | sublime.CLASS_WORD_END | sublime.CLASS_LINE_START | sublime.CLASS_LINE_END)
+            word = self._current_view.substr(word_region).strip().strip('\\')
+            if word:
+                # Check if word is
+                # 1. imported with use
+                # 2. in current namespace
+                namespace = False
+                use_regions = self._current_view.find_all(r'^use ([^;]+)')
+                for use_region in use_regions:
+                    use_line = self._current_view.substr(use_region)
+                    if word in use_line:
+                        namespace = re.search(r'^use ([^ ;]+)', self._current_view.substr(use_region)).group(1)
+                        self._index = NamespaceIndex.Instance().getIndexByName(namespace)
+                        break
+                if not namespace:
+                    namespace_region = self._current_view.find(r'namespace ([^ ;]+)', 0)
+                    if namespace_region:
+                        namespace_match = self._current_view.substr(namespace_region)
+                        namespace = re.search(r'namespace ([^ ;]+)', namespace_match).group(1)
+                        namespace += '\\' + word
+                        self._index = NamespaceIndex.Instance().getIndexByName(namespace)
+                        if len(self._index) == 0:
+                            self._index = NamespaceIndex.Instance().getIndexByClassName(word)
+                    else:
+                        self._index = NamespaceIndex.Instance().getIndexByName(word)
 
     def select_file(self, option_index):
         # Open file if quick panel was not cancelled
@@ -302,9 +303,29 @@ class PhpnahaFindClassAndInsertUseStatement(sublime_plugin.TextCommand, FilePrev
     _current_view = None
 
     def run(self, edit):
-        # Store current view, so that it can be re-focused if needed
         self._current_view = self.view
         self.quick_panel()
+
+    def set_index_by_selected_region(self, region):
+        line_region = self._current_view.expand_by_class(region, sublime.CLASS_LINE_START | sublime.CLASS_LINE_END)
+        line = self._current_view.substr(line_region).strip()
+        if (re.match(r'^use', line)):
+            namespace = re.search( r'^use ([^ ;]+)', line).group(1)
+            self._index = NamespaceIndex.Instance().getIndexByName(namespace)
+        else:
+            word_region = self._current_view.expand_by_class(region, sublime.CLASS_WORD_START | sublime.CLASS_WORD_END | sublime.CLASS_LINE_START | sublime.CLASS_LINE_END)
+            word = self._current_view.substr(word_region).strip().strip('\\')
+            if word:
+                namespace_region = self._current_view.find(r'namespace ([^ ;]+)', 0)
+                if namespace_region:
+                    namespace_match = self._current_view.substr(namespace_region)
+                    namespace = re.search(r'namespace ([^ ;]+)', namespace_match).group(1)
+                    namespace += '\\' + word
+                    self._index = NamespaceIndex.Instance().getIndexByName(namespace)
+                    if len(self._index) == 0:
+                        self._index = NamespaceIndex.Instance().getIndexByClassName(word)
+                else:
+                    self._index = NamespaceIndex.Instance().getIndexByName(word)
 
     def select_file(self, option_index):
         # Open file if quick panel was not cancelled
