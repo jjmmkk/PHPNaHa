@@ -151,29 +151,59 @@ class PhpnahaIndexProjectNamespaces(sublime_plugin.TextCommand):
         self._indexer_thread.start()
 
 
-class PhpnahaInsertNamespaceStatement(sublime_plugin.TextCommand):
+class NamespacePathHandler(object):
+
+    def findNamespaceByPath(self, path):
+        namespace = ''
+        if path:
+            path_list = list(filter(None, path.split(os.path.sep)))
+            path_list.reverse()
+            namespace_list = []
+            for item in path_list:
+                if not item.endswith('.php'):
+                    if item[0].isupper() or item == 'eZ':
+                        namespace_list.append(item)
+                    else:
+                        break
+            if namespace_list:
+                namespace = '\\'.join(namespace_list)
+        return namespace
+
+
+class PhpnahaInsertNamespaceStatement(sublime_plugin.TextCommand, NamespacePathHandler):
 
     def run(self, edit):
         file_name = self.view.file_name()
         file_path = os.path.abspath(file_name)
-        path_list = list(filter(None, file_path.split(os.path.sep)))
-        path_list.reverse()
-        namespace_list = []
-        for item in path_list:
-            if not item.endswith('.php'):
-                if item[0].isupper() or item == 'eZ':
-                    namespace_list.append(item)
-                else:
-                    break
-        if namespace_list:
-            namespace = '\\'.join(namespace_list)
+        namespace = self.findNamespaceByPath(file_path)
+        if namespace:
             self.view.run_command('private_insert_namespace_statement', { 'namespace': namespace })
 
 
-class PhpnahaCopyNamespaceAndClass(sublime_plugin.TextCommand):
+class PhpnahaCopyNamespaceAndClass(sublime_plugin.TextCommand, NamespacePathHandler):
 
     def run(self, edit):
-        pass
+        namespace = False
+        class_name = False
+
+        namespace_region = self.view.find(r'namespace ([^ ;]+)', 0)
+        if namespace_region:
+            namespace_match = self.view.substr(namespace_region)
+            namespace = re.search(r'namespace ([^ ;]+)', namespace_match).group(1)
+        class_name_region = self.view.find(r'^(?:abstract )?(?:(?:class)|(?:interface)) ([^\s]+)', 0)
+        if class_name_region:
+            class_name_match = self.view.substr(class_name_region)
+            class_name = re.search(r'^(?:abstract )?(?:(?:class)|(?:interface)) ([^\s]+)', class_name_match).group(1)
+
+        clipboard = False
+        if namespace and class_name:
+            clipboard = namespace + '\\' + class_name
+        elif namespace:
+            clipboard = namespace
+        elif class_name:
+            clipboard = '\\' + class_name
+        if clipboard:
+            sublime.set_clipboard(clipboard)
 
 
 class FilePreviewer(object):
