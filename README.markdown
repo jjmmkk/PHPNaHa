@@ -84,6 +84,22 @@ Default key binding:
 ]
 ```
 
+### Find namespace sub class
+
+If the cursor is inside a namespace or a namespace is highlighted, a matching class inside the namespace will be looked for. If more than one matching file is found, a quick panel will be displayed with the files as options.
+
+Selecting a file will append the class name to the namespace.
+
+#### Key binding
+
+None by default. Can be bound with the following:
+
+```json
+[
+    { "keys": ["KEY(S)"], "command": "phpnaha_find_namespace_sub_class" }
+]
+```
+
 ## Todo
 
 * Stop folders

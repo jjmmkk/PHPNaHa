@@ -64,6 +64,9 @@ class NamespaceIndex:
                 namespaces.append(namespace)
         return namespaces
 
+    def getIndexSubClassesByName(self, name):
+        return [namespace for namespace in self._namespace_index if name in namespace.name()]
+
 
 class NamespaceContainer(object):
     _name = ''
@@ -337,6 +340,49 @@ class PhpnahaFindClassAndInsertUseStatement(sublime_plugin.TextCommand, FilePrev
         self.view.window().focus_view(self._current_view)
 
 
+class PhpnahaFindNamespaceSubClass(sublime_plugin.TextCommand, FilePreviewer):
+
+    _index = None
+    _current_view = None
+    _word = None
+    _word_region = None
+
+    def run(self, edit):
+        self._current_view = self.view
+        self.quick_panel()
+
+    def set_index_by_selected_region(self, region):
+        word_region = self._current_view.expand_by_class(region, sublime.CLASS_WORD_START | sublime.CLASS_WORD_END | sublime.CLASS_LINE_START | sublime.CLASS_LINE_END, ' ')
+        word = self._current_view.substr(word_region).strip()
+        if word:
+            self._word_region = word_region
+            self._word = word
+            use_regions = self._current_view.find_all(r'^use ([^;]+)')
+            for use_region in use_regions:
+                use_line = self._current_view.substr(use_region)
+                if use_line.endswith(word):
+                    namespace = re.search(r'^use ([^ ;]+)', self._current_view.substr(use_region)).group(1)
+                    self._index = NamespaceIndex.Instance().getIndexSubClassesByName(namespace)
+                    break
+
+    def select_file(self, option_index):
+        # Open file if quick panel was not cancelled
+        if option_index != -1:
+            namespace = self._index[option_index].name()
+            class_name_parts = namespace.split(self._word)
+            if len(class_name_parts) == 2:
+                text = self._word + class_name_parts[1] + '\n'
+                self._current_view.run_command(
+                    'private_replace_region',
+                    {
+                        'region': (self._word_region.begin(), self._word_region.end()),
+                        'text': text
+                    }
+                )
+        # Else re-focus the current view
+        self.view.window().focus_view(self._current_view)
+
+
 class PrivateInsertUseStatement(sublime_plugin.TextCommand):
 
     def run(self, edit, namespace):
@@ -401,3 +447,10 @@ class PrivateInsertNamespaceStatement(sublime_plugin.TextCommand):
                 insertion_text = format.format(line_text, namespace_statement)
                 view.replace(edit, line_match, insertion_text)
                 break
+
+
+class PrivateReplaceRegion(sublime_plugin.TextCommand):
+
+    def run(self, edit, region, text):
+        region = sublime.Region(region[0], region[1])
+        self.view.replace(edit, region, text)
