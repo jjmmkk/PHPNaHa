@@ -31,16 +31,20 @@ class Singleton:
         return isinstance(inst, self._decorated)
 
 
-NAMESPACE_INDEX = []
 
 @Singleton
 class NamespaceIndex:
 
+    _namespace_index = []
+
     def clear(self):
-        NAMESPACE_INDEX = []
+        self._namespace_index = []
 
     def addNamespace(self, name, filename):
-        NAMESPACE_INDEX.append(NamespaceContainer(name, filename))
+        self._namespace_index.append(NamespaceContainer(name, filename))
+
+    def getIndex(self):
+        return self._namespace_index
 
 
 class NamespaceContainer(object):
@@ -115,8 +119,7 @@ class NamespaceIndexerThread(threading.Thread):
 class PhpnahaDebug(sublime_plugin.TextCommand):
 
     def run(self, edit):
-        print(len(NAMESPACE_INDEX))
-        print(NAMESPACE_INDEX[0].name())
+        print(len(NamespaceIndex.Instance().getIndex()))
         pass
 
 
@@ -151,7 +154,22 @@ class PhpnahaCopyNamespaceAndClass(sublime_plugin.TextCommand):
 class PhpnahaOpenClassFile(sublime_plugin.TextCommand):
 
     def run(self, edit):
-        pass
+        index = NamespaceIndex.Instance().getIndex()
+        quick_panel_options = [container.name() for container in index]
+        self.view.window().show_quick_panel(
+            items = quick_panel_options,
+            on_select = self.select_file,
+            on_highlight = self.preview_file
+        )
+
+    def select_file(self, index):
+        if index == -1:
+            return
+        else:
+            print('index selected: ' + index)
+
+    def preview_file(self, index):
+        print('preview index: ' + index)
 
 
 class PhpnahaFindClassAndInsertUseStatement(sublime_plugin.TextCommand):
