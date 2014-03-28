@@ -176,6 +176,7 @@ class NamespacePathHandler(object):
                     else:
                         break
             if namespace_list:
+                namespace_list.reverse()
                 namespace = '\\'.join(namespace_list)
         return namespace
 
