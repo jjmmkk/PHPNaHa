@@ -274,17 +274,27 @@ class PhpnahaOpenClassFile(sublime_plugin.TextCommand, FilePreviewer):
             if '::' in word:
                 word = next(iter(word.split('::')), False)
             if word:
-                # Check if word is
-                # 1. imported with use
-                # 2. in current namespace
                 namespace = False
                 use_regions = self._current_view.find_all(r'^use ([^;]+)')
-                for use_region in use_regions:
-                    use_line = self._current_view.substr(use_region)
-                    if word in use_line:
-                        namespace = re.search(r'^use ([^ ;]+)', self._current_view.substr(use_region)).group(1)
-                        self._index = NamespaceIndex.Instance().getIndexByName(namespace)
-                        break
+                if '\\' in word:
+                    use_end = word.split('\\')[0]
+                    for use_region in use_regions:
+                        use_line = self._current_view.substr(use_region)
+                        if use_line.endswith(use_end):
+                            namespace = re.search(r'^use ([^ ;]+)', self._current_view.substr(use_region)).group(1)
+                            # Remove duplicate level
+                            word_split = word.split('\\')[1:]
+                            namespace += '\\' + '\\'.join(word_split)
+                            print(namespace)
+                            self._index = NamespaceIndex.Instance().getIndexByName(namespace)
+                            break
+                else:
+                    for use_region in use_regions:
+                        use_line = self._current_view.substr(use_region)
+                        if word in use_line:
+                            namespace = re.search(r'^use ([^ ;]+)', self._current_view.substr(use_region)).group(1)
+                            self._index = NamespaceIndex.Instance().getIndexByName(namespace)
+                            break
                 if not namespace:
                     namespace_region = self._current_view.find(r'namespace ([^ ;]+)', 0)
                     if namespace_region:
