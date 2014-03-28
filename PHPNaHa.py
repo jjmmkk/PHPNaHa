@@ -356,6 +356,12 @@ class PhpnahaFindNamespaceSubClass(sublime_plugin.TextCommand, FilePreviewer):
         if word:
             self._word_region = word_region
             self._word = word
+            use_end_combos = []
+            for part in word.split('\\'):
+                if use_end_combos:
+                    part = use_end_combos[-1] + '\\' + part
+                use_end_combos.append(part)
+            use_end_combos.reverse()
             use_regions = self._current_view.find_all(r'^use ([^;]+)')
             for use_region in use_regions:
                 use_line = self._current_view.substr(use_region)
@@ -363,6 +369,13 @@ class PhpnahaFindNamespaceSubClass(sublime_plugin.TextCommand, FilePreviewer):
                     namespace = re.search(r'^use ([^ ;]+)', self._current_view.substr(use_region)).group(1)
                     self._index = NamespaceIndex.Instance().getIndexSubClassesByName(namespace)
                     break
+                else:
+                    for use_ending in use_end_combos:
+                        if use_line.endswith(use_ending):
+                            namespace = re.search(r'^use ([^ ;]+)', self._current_view.substr(use_region)).group(1)
+                            self._index = NamespaceIndex.Instance().getIndexSubClassesByName(namespace)
+                            break
+
 
     def select_file(self, option_index):
         # Open file if quick panel was not cancelled
