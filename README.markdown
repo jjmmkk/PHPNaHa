@@ -58,11 +58,16 @@ Open the file containing the selected class name or namespace. You select a clas
 
 #### Key binding
 
-None by default. Can be bound with the following:
+Default key binding:
 
 ```json
 [
-    { "keys": ["KEY(S)"], "command": "phpnaha_open_class_file" }
+    {
+        "button": "button1",
+        "modifiers": ["alt"],
+        "command": "phpnaha_open_class_file",
+        "press_command": "drag_select"
+    }
 ]
 ```
 

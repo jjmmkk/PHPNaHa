@@ -1,0 +1,8 @@
+[
+	{
+		"button": "button1",
+		"modifiers": ["alt"],
+		"command": "phpnaha_open_class_file",
+		"press_command": "drag_select"
+	}
+]
