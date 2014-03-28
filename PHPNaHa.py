@@ -414,24 +414,34 @@ class PrivateInsertUseStatement(sublime_plugin.TextCommand):
             (
                 r'^use ',
                 '{0}{1}',
+                False,
             ),
             (
                 r'^namespace ',
                 '{0}\n{1}',
+                True,
             ),
             (
                 r'^class ',
                 '{1}\n{0}',
+                True,
             ),
             (
                 r'^<\?php',
                 '{0}\n{1}',
+                True,
             ),
         ]
         view = self.view
         for attempt_location in insert_loctions:
-            regex, format = attempt_location
-            region_match = view.find(regex, 0)
+            regex, format, search_from_start = attempt_location
+            region_match = False
+            if search_from_start:
+                region_match = view.find(regex, 0)
+            else:
+                region_matches = view.find_all(regex)
+                if region_matches:
+                    region_match = region_matches[-1]
             if region_match:
                 line_match = view.full_line(region_match.begin())
                 line_text = view.substr(line_match)
