@@ -354,6 +354,7 @@ class PhpnahaFindNamespaceSubClass(sublime_plugin.TextCommand, FilePreviewer):
         word_region = self._current_view.expand_by_class(region, sublime.CLASS_WORD_START | sublime.CLASS_WORD_END | sublime.CLASS_LINE_START | sublime.CLASS_LINE_END, ' ')
         word = self._current_view.substr(word_region).strip()
         if word:
+            word = re.sub(r'^[^\w]+|[^\w]+$', '', str(word))
             self._word_region = word_region
             self._word = word
             use_end_combos = []
