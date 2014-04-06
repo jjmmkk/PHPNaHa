@@ -7,32 +7,23 @@ import os.path
 import threading
 import codecs
 import re
+import hashlib
 
 
-class Singleton:
+
+def multiton(cls):
     """
-    http://stackoverflow.com/questions/42558/python-and-the-singleton-pattern
+    http://en.wikipedia.org/wiki/Multiton_pattern
     """
-
-    def __init__(self, decorated):
-        self._decorated = decorated
-
-    def Instance(self):
-        try:
-            return self._instance
-        except AttributeError:
-            self._instance = self._decorated()
-            return self._instance
-
-    def __call__(self):
-        raise TypeError('Singletons must be accessed through `Instance()`.')
-
-    def __instancecheck__(self, inst):
-        return isinstance(inst, self._decorated)
+    instances = {}
+    def getinstance(key):
+        if key not in instances:
+            instances[key] = cls()
+        return instances[key]
+    return getinstance
 
 
-
-@Singleton
+@multiton
 class NamespaceIndex:
 
     _namespace_index = []
@@ -81,6 +72,14 @@ class NamespaceContainer(object):
 
     def path(self):
         return self._filename
+
+
+def getProjectIndexInstance(key_base):
+    if isinstance(key_base, sublime.Window):
+        key = hashlib.md5(''.join(sorted(key_base.folders())).encode('utf-8')).hexdigest()
+    else:
+        key = 'not_project'
+    return NamespaceIndex(key)
 
 
 class NamespaceIndexerThread(threading.Thread):
@@ -150,14 +149,13 @@ class PhpnahaIndexProjectNamespaces(sublime_plugin.TextCommand):
     _indexer_thread = None
 
     def run(self, edit):
-        NamespaceIndex.Instance().clear()
         if self._indexer_thread != None:
             self._indexer_thread.stop()
-        project_root_folders = self.view.window().folders()
-        self._indexer_thread = NamespaceIndexerThread(
-            project_root_folders,
-            NamespaceIndex.Instance()
-        )
+        window = self.view.window()
+        index = getProjectIndexInstance(window)
+        index.clear()
+        project_root_folders = window.folders()
+        self._indexer_thread = NamespaceIndexerThread( project_root_folders, index )
         self._indexer_thread.start()
 
 
@@ -227,14 +225,15 @@ class FilePreviewer(object):
         )
 
     def quick_panel(self):
-        self._index = NamespaceIndex.Instance().getIndex()
+        whole_index = self._index_instance.getIndex()
+        self._index = whole_index
 
         selections = self._current_view.sel()
         if selections:
             self.set_index_by_selected_region(selections[0])
 
         if len(self._index) == 0:
-            self._index = NamespaceIndex.Instance().getIndex()
+            self._index = whole_index
 
         # Open directly if only one file was found
         if len(self._index) == 1:
@@ -252,10 +251,13 @@ class FilePreviewer(object):
 
 class PhpnahaOpenClassFile(sublime_plugin.TextCommand, FilePreviewer):
 
+    _index_instance = None
     _index = None
     _current_view = None
 
     def run(self, edit):
+        self._index_instance = getProjectIndexInstance(self.view.window())
+        self._index = self._index_instance.getIndex()
         self._current_view = self.view
         self.quick_panel()
 
@@ -264,7 +266,7 @@ class PhpnahaOpenClassFile(sublime_plugin.TextCommand, FilePreviewer):
         line = self._current_view.substr(line_region).strip()
         if (re.match(r'^use', line)):
             namespace = re.search( r'^use ([^ ;]+)', line).group(1)
-            self._index = NamespaceIndex.Instance().getIndexByName(namespace)
+            self._index = self._index_instance.getIndexByName(namespace)
         else:
             word_region = self._current_view.expand_by_class(region, sublime.CLASS_WORD_START | sublime.CLASS_WORD_END | sublime.CLASS_LINE_START | sublime.CLASS_LINE_END, ' ')
             word = self._current_view.substr(word_region).strip().strip('\\')
@@ -285,15 +287,14 @@ class PhpnahaOpenClassFile(sublime_plugin.TextCommand, FilePreviewer):
                             # Remove duplicate level
                             word_split = word.split('\\')[1:]
                             namespace += '\\' + '\\'.join(word_split)
-                            print(namespace)
-                            self._index = NamespaceIndex.Instance().getIndexByName(namespace)
+                            self._index = self._index_instance.getIndexByName(namespace)
                             break
                 else:
                     for use_region in use_regions:
                         use_line = self._current_view.substr(use_region)
                         if word in use_line:
                             namespace = re.search(r'^use ([^ ;]+)', self._current_view.substr(use_region)).group(1)
-                            self._index = NamespaceIndex.Instance().getIndexByName(namespace)
+                            self._index = self._index_instance.getIndexByName(namespace)
                             break
                 if not namespace:
                     namespace_region = self._current_view.find(r'namespace ([^ ;]+)', 0)
@@ -301,11 +302,11 @@ class PhpnahaOpenClassFile(sublime_plugin.TextCommand, FilePreviewer):
                         namespace_match = self._current_view.substr(namespace_region)
                         namespace = re.search(r'namespace ([^ ;]+)', namespace_match).group(1)
                         namespace += '\\' + word
-                        self._index = NamespaceIndex.Instance().getIndexByName(namespace)
+                        self._index = self._index_instance.getIndexByName(namespace)
                         if len(self._index) == 0:
-                            self._index = NamespaceIndex.Instance().getIndexByClassName(word)
+                            self._index = self._index_instance.getIndexByClassName(word)
                     else:
-                        self._index = NamespaceIndex.Instance().getIndexByName(word)
+                        self._index = self._index_instance.getIndexByName(word)
 
     def select_file(self, option_index):
         # Open file if quick panel was not cancelled
@@ -318,10 +319,13 @@ class PhpnahaOpenClassFile(sublime_plugin.TextCommand, FilePreviewer):
 
 class PhpnahaFindClassAndInsertUseStatement(sublime_plugin.TextCommand, FilePreviewer):
 
+    _index_instance = None
     _index = None
     _current_view = None
 
     def run(self, edit):
+        self._index_instance = getProjectIndexInstance(self.view.window())
+        self._index = self._index_instance.getIndex()
         self._current_view = self.view
         self.quick_panel()
 
@@ -329,7 +333,7 @@ class PhpnahaFindClassAndInsertUseStatement(sublime_plugin.TextCommand, FilePrev
         line_region = self._current_view.expand_by_class(region, sublime.CLASS_LINE_START | sublime.CLASS_LINE_END)
         line = self._current_view.substr(line_region).strip()
         if (re.match(r'^use', line)):
-            self._index = NamespaceIndex.Instance().getIndex()
+            self._index = self._index_instance.getIndex()
         else:
             word_region = self._current_view.expand_by_class(region, sublime.CLASS_WORD_START | sublime.CLASS_WORD_END | sublime.CLASS_LINE_START | sublime.CLASS_LINE_END)
             word = self._current_view.substr(word_region).strip().strip('\\')
@@ -344,11 +348,11 @@ class PhpnahaFindClassAndInsertUseStatement(sublime_plugin.TextCommand, FilePrev
                     namespace_match = self._current_view.substr(namespace_region)
                     namespace = re.search(r'namespace ([^ ;]+)', namespace_match).group(1)
                     namespace += '\\' + word
-                    self._index = NamespaceIndex.Instance().getIndexByName(namespace)
+                    self._index = self._index_instance.getIndexByName(namespace)
                     if len(self._index) == 0:
-                        self._index = NamespaceIndex.Instance().getIndexByClassName(word)
+                        self._index = self._index_instance.getIndexByClassName(word)
                 else:
-                    self._index = NamespaceIndex.Instance().getIndexByName(word)
+                    self._index = self._index_instance.getIndexByName(word)
 
     def select_file(self, option_index):
         # Open file if quick panel was not cancelled
@@ -360,12 +364,14 @@ class PhpnahaFindClassAndInsertUseStatement(sublime_plugin.TextCommand, FilePrev
 
 class PhpnahaFindNamespaceSubClass(sublime_plugin.TextCommand, FilePreviewer):
 
+    _index_instance = None
     _index = None
     _current_view = None
     _word = None
     _word_region = None
 
     def run(self, edit):
+        self._index_instance = getProjectIndexInstance(self.view.window())
         self._current_view = self.view
         self.quick_panel()
 
@@ -387,13 +393,13 @@ class PhpnahaFindNamespaceSubClass(sublime_plugin.TextCommand, FilePreviewer):
                 use_line = self._current_view.substr(use_region)
                 if use_line.endswith(word):
                     namespace = re.search(r'^use ([^ ;]+)', self._current_view.substr(use_region)).group(1)
-                    self._index = NamespaceIndex.Instance().getIndexSubClassesByName(namespace)
+                    self._index = self._index_instance.getIndexSubClassesByName(namespace)
                     break
                 else:
                     for use_ending in use_end_combos:
                         if use_line.endswith(use_ending):
                             namespace = re.search(r'^use ([^ ;]+)', self._current_view.substr(use_region)).group(1)
-                            self._index = NamespaceIndex.Instance().getIndexSubClassesByName(namespace)
+                            self._index = self._index_instance.getIndexSubClassesByName(namespace)
                             break
 
 
