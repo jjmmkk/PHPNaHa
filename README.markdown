@@ -107,4 +107,5 @@ None by default. Can be bound with the following:
 
 ## Todo
 
+* Split code into modules
 * Stop folders
