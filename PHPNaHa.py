@@ -135,6 +135,8 @@ class NamespaceIndexerThread(threading.Thread):
 
     def get_php_files(self, dir_name):
         fileList = []
+        if not os.access(dir_name, os.R_OK):
+            return fileList
         for file in os.listdir(dir_name):
             dirfile = os.path.join(dir_name, file)
             if os.path.isfile(dirfile) and dirfile.endswith('.php'):
